@@ -1,0 +1,10 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+yfinance
+apig_wsgi
+ruff
+pytest
+pytest-cov
+httpx

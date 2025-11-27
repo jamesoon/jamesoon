@@ -1,0 +1,7 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+yfinance>=0.2.40
+boto3
+pyarrow
