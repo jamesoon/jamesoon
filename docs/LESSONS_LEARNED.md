@@ -23,3 +23,13 @@ This document records critical lessons, bug fixes, and architectural decisions t
 - **Issue**: Inconsistent code style and repeated errors.
 - **Solution**: Implemented `AGENT_INSTRUCTIONS.md` and `.cursorrules`.
 - **Prevention**: Agents are now instructed to read these files first.
+
+## [2025-11-30] Model Inference Mismatch & Drift Monitoring
+- **Context**: Debugging why the `model-inference` module (SageMaker) gave different predictions compared to local/Lambda execution.
+- **Issue**: The SageMaker inference script (`sagemaker_inference.py`) was not loading the same fresh data from S3 as the local application (`app_s3.py`). It was likely relying on stale or differently processed features passed in the request body.
+- **Solution**: Updated `ml_source/sagemaker_inference.py` to:
+    1. Load market data directly from S3 (`s3://mdaie-prml-spy-bucket/market-data/latest.parquet`).
+    2. Implement the exact same feature engineering logic as `app_s3.py` (RSI, rolling means, etc.).
+    3. Log inference details to CloudWatch for debugging.
+- **Prevention**: Ensure that inference logic (feature engineering) is shared or identical across all environments (Local, Lambda, SageMaker). Use a shared library or identical script logic.
+- **Drift Monitoring**: Created `scripts/setup_drift_monitoring.py` to enable SageMaker Data Capture and guide the setup of Model Quality Monitoring.
