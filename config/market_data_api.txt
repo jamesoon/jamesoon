@@ -2,4 +2,4 @@ MARKET_DATA_API_URL=https://0qoytg0cfg.execute-api.ap-southeast-1.amazonaws.com/
 API_GATEWAY_ID=0qoytg0cfg
 LAMBDA_FUNCTION=market-data-fetcher
 REGION=ap-southeast-1
-DEPLOYED_AT=Mon Nov 24 09:01:44 +08 2025
+DEPLOYED_AT=Wed Dec  3 22:26:42 +08 2025

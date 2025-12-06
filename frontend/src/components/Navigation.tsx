@@ -16,6 +16,8 @@ import {
   ShowChart,
   Psychology,
   Logout,
+  Assessment,
+  Summarize,
 } from '@mui/icons-material';
 import { useApp } from '../contexts/AppContext';
 
@@ -43,7 +45,7 @@ const Navigation: React.FC = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 4 }}>
           <TrendingUp sx={{ fontSize: 28 }} />
           <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: '-0.5px' }}>
-          MDAIE PROJECT
+            MDAIE PROJECT
           </Typography>
           <Typography variant="body2" color="text.secondary">
             AI Powered Prediction Platform
@@ -89,6 +91,32 @@ const Navigation: React.FC = () => {
             }}
           >
             AI Prediction
+          </Button>
+          <Button
+            color="inherit"
+            startIcon={<Assessment />}
+            onClick={() => navigate('/analytics')}
+            sx={{
+              fontWeight: isActive('/analytics') ? 600 : 400,
+              borderBottom: isActive('/analytics') ? '2px solid white' : 'none',
+              borderRadius: 0,
+              px: 2,
+            }}
+          >
+            Analytics
+          </Button>
+          <Button
+            color="inherit"
+            startIcon={<Summarize />}
+            onClick={() => navigate('/reports')}
+            sx={{
+              fontWeight: isActive('/reports') ? 600 : 400,
+              borderBottom: isActive('/reports') ? '2px solid white' : 'none',
+              borderRadius: 0,
+              px: 2,
+            }}
+          >
+            Reports
           </Button>
         </Box>
 

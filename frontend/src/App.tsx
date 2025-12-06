@@ -2,11 +2,14 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Box } from '@mui/material';
 import { AppProvider, useApp } from './contexts/AppContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './components/Login';
 import Navigation from './components/Navigation';
 import Portfolio from './components/Portfolio';
 import Trading from './components/Trading';
 import Prediction from './components/Prediction';
+import Analytics from './components/Analytics';
+import Reports from './components/Reports';
 import Footer from './components/Footer';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -47,6 +50,22 @@ const AppContent: React.FC = () => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute>
+                <Analytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <Reports />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Box>
@@ -59,7 +78,9 @@ const App: React.FC = () => {
   return (
     <AppProvider>
       <Router>
-        <AppContent />
+        <ErrorBoundary>
+          <AppContent />
+        </ErrorBoundary>
       </Router>
     </AppProvider>
   );

@@ -11,6 +11,7 @@ import yfinance as yf
 import requests
 from datetime import datetime, timedelta
 from io import BytesIO
+from decimal import Decimal
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -68,7 +69,13 @@ def download_price_data(tickers_dict, start_date=None, end_date=None, period='5d
         # But we requested multiple tickers usually.
         # If only one ticker requested, handle it:
         symbol = list(tickers_dict.values())[0]
-        return pd.concat({symbol: data}, axis=1).sort_index(axis=1)
+        data = pd.concat({symbol: data}, axis=1).sort_index(axis=1)
+
+    # Ensure timezone-naive index
+    if hasattr(data.index, 'tz') and data.index.tz is not None:
+        data.index = data.index.tz_localize(None)
+        
+    return data
 
 
 def load_existing_data(bucket, key):
@@ -76,6 +83,11 @@ def load_existing_data(bucket, key):
     try:
         obj = s3.get_object(Bucket=bucket, Key=key)
         df = pd.read_parquet(BytesIO(obj['Body'].read()))
+        
+        # Ensure timezone-naive index
+        if hasattr(df.index, 'tz') and df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+            
         return df
     except s3.exceptions.NoSuchKey:
         print(f"No existing data found at s3://{bucket}/{key}")
@@ -195,10 +207,18 @@ def lambda_handler(event, context):
             'total_rows': len(combined)
         }
         
+        # --- NEW: Generate and Store Prediction ---
+        try:
+            print("Generating daily prediction...")
+            invoke_sagemaker_prediction()
+        except Exception as e:
+            print(f"Error generating prediction: {str(e)}")
+            # Don't fail the whole update if prediction fails
+        
         return {
             'statusCode': 200,
             'body': json.dumps({
-                'message': 'Data updated successfully (both files)',
+                'message': 'Data updated successfully (both files) and prediction generated',
                 'date_range': date_range
             })
         }
@@ -215,4 +235,64 @@ def lambda_handler(event, context):
                 'message': str(e)
             })
         }
+
+
+def invoke_sagemaker_prediction():
+    """
+    Invoke SageMaker endpoint to get prediction for today/latest data.
+    Store result in DynamoDB.
+    """
+    endpoint_name = os.environ.get('SAGEMAKER_ENDPOINT_NAME', 'spy-prediction-endpoint')
+    dynamodb_table = os.environ.get('DYNAMODB_TABLE', 'TradingApp')
+    
+    print(f"Invoking endpoint: {endpoint_name}")
+    
+    runtime = boto3.client('sagemaker-runtime')
+    
+    # We don't need to pass much data if the endpoint loads from S3, 
+    # but we can pass the date we want to predict for (latest).
+    # The endpoint logic (sagemaker_inference.py) handles loading data.
+    
+    payload = {'date': None} # None implies latest
+    
+    response = runtime.invoke_endpoint(
+        EndpointName=endpoint_name,
+        ContentType='application/json',
+        Body=json.dumps(payload)
+    )
+    
+    result = json.loads(response['Body'].read().decode())
+    print(f"Prediction result: {json.dumps(result)}")
+    
+    # Store in DynamoDB
+    # PK: PREDICTION#SPY
+    # SK: DATE#YYYY-MM-DD
+    
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(dynamodb_table)
+    
+    # result structure from sagemaker_inference.py:
+    # {
+    #     "signal_date": "2023-10-27",
+    #     "pred_return": 0.0012,
+    #     "signal": "BUY",
+    #     "current_price": 410.5,
+    #     "prob_up": 0.55,
+    #     "prediction": [1]
+    # }
+    
+    item = {
+        'userId': 'PREDICTION#SPY',
+        'itemType': f"DATE#{result['signal_date']}",
+        'date': result['signal_date'],
+        'pred_return': Decimal(str(result['pred_return'])),
+        'signal': result['signal'],
+        'current_price': Decimal(str(result['current_price'])),
+        'prob_up': Decimal(str(result['prob_up'])),
+        'updatedAt': datetime.utcnow().isoformat()
+    }
+    
+    table.put_item(Item=item)
+    print(f"Stored prediction for {result['signal_date']} in DynamoDB")
+
 

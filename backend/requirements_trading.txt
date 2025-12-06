@@ -1,0 +1,7 @@
+# Trading Backend Lambda Requirements
+# boto3 is already included in AWS Lambda runtime (no need to package)
+
+
+yfinance
+pandas
+numpy

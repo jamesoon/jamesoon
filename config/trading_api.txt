@@ -1,0 +1,11 @@
+# Trading Backend API Configuration
+# Generated: Sun Nov 30 17:26:50 +08 2025
+
+TRADING_API_URL=https://m6dc44h91f.execute-api.ap-southeast-1.amazonaws.com
+API_ID=m6dc44h91f
+FUNCTION_NAME=trading-backend
+FUNCTION_ARN=arn:aws:lambda:ap-southeast-1:544794037284:function:trading-backend
+TABLE_NAME=TradingApp
+TABLE_ARN=arn:aws:dynamodb:ap-southeast-1:544794037284:table/TradingApp
+REGION=ap-southeast-1
+DEPLOYED_AT=2025-11-30T17:26:50+08:00

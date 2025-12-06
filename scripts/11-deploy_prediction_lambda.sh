@@ -24,6 +24,10 @@ if aws lambda get-function --function-name ${FUNCTION_NAME} --region ${AWS_REGIO
         --function-name ${FUNCTION_NAME} \
         --image-uri ${IMAGE_URI} \
         --region ${AWS_REGION}
+        
+    # Update configuration with environment variables
+    # (Optional) Add other env vars here if needed
+    # aws lambda update-function-configuration ...
 else
     echo "Creating new function..."
     # Create Role if not exists
@@ -39,6 +43,10 @@ else
             }]
         }'
         aws iam attach-role-policy --role-name ${ROLE_NAME} --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        
+        # Add S3 access for market data
+        aws iam attach-role-policy --role-name ${ROLE_NAME} --policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+        
         sleep 10 # Wait for propagation
     fi
     ROLE_ARN=$(aws iam get-role --role-name ${ROLE_NAME} --query Role.Arn --output text)
@@ -48,8 +56,8 @@ else
         --package-type Image \
         --code ImageUri=${IMAGE_URI} \
         --role ${ROLE_ARN} \
-        --timeout 30 \
-        --memory-size 512 \
+        --timeout 60 \
+        --memory-size 1024 \
         --region ${AWS_REGION}
 fi
 
@@ -121,6 +129,93 @@ aws apigateway put-integration \
     --integration-http-method POST \
     --uri arn:aws:apigateway:${AWS_REGION}:lambda:path/2015-03-31/functions/${LAMBDA_ARN}/invocations \
     --region ${AWS_REGION}
+
+# Create /api/model/drift resources
+echo "Configuring /api/model/drift..."
+
+# 1. Create /api
+API_RESOURCE_ID=$(aws apigateway get-resources --rest-api-id ${API_ID} --query "items[?path=='/api'].id" --output text --region ${AWS_REGION})
+if [ -z "$API_RESOURCE_ID" ]; then
+    echo "Creating /api resource..."
+    API_RESOURCE_ID=$(aws apigateway create-resource --rest-api-id ${API_ID} --parent-id ${ROOT_ID} --path-part api --query id --output text --region ${AWS_REGION})
+fi
+
+# 2. Create /api/model
+MODEL_RESOURCE_ID=$(aws apigateway get-resources --rest-api-id ${API_ID} --query "items[?path=='/api/model'].id" --output text --region ${AWS_REGION})
+if [ -z "$MODEL_RESOURCE_ID" ]; then
+    echo "Creating /api/model resource..."
+    MODEL_RESOURCE_ID=$(aws apigateway create-resource --rest-api-id ${API_ID} --parent-id ${API_RESOURCE_ID} --path-part model --query id --output text --region ${AWS_REGION})
+fi
+
+# 3. Create /api/model/drift
+DRIFT_RESOURCE_ID=$(aws apigateway get-resources --rest-api-id ${API_ID} --query "items[?path=='/api/model/drift'].id" --output text --region ${AWS_REGION})
+if [ -z "$DRIFT_RESOURCE_ID" ]; then
+    echo "Creating /api/model/drift resource..."
+    DRIFT_RESOURCE_ID=$(aws apigateway create-resource --rest-api-id ${API_ID} --parent-id ${MODEL_RESOURCE_ID} --path-part drift --query id --output text --region ${AWS_REGION})
+fi
+
+# 4. Create GET method for /api/model/drift
+echo "Creating GET method for /api/model/drift..."
+aws apigateway put-method \
+    --rest-api-id ${API_ID} \
+    --resource-id ${DRIFT_RESOURCE_ID} \
+    --http-method GET \
+    --authorization-type NONE \
+    --region ${AWS_REGION} || true
+
+# 5. Integrate with Lambda
+echo "Integrating /api/model/drift with Lambda..."
+aws apigateway put-integration \
+    --rest-api-id ${API_ID} \
+    --resource-id ${DRIFT_RESOURCE_ID} \
+    --http-method GET \
+    --type AWS_PROXY \
+    --integration-http-method POST \
+    --uri arn:aws:apigateway:${AWS_REGION}:lambda:path/2015-03-31/functions/${LAMBDA_ARN}/invocations \
+    --region ${AWS_REGION}
+
+# 6. Add CORS for /api/model/drift
+echo "Adding CORS for /api/model/drift..."
+aws apigateway put-method \
+    --rest-api-id ${API_ID} \
+    --resource-id ${DRIFT_RESOURCE_ID} \
+    --http-method OPTIONS \
+    --authorization-type NONE \
+    --region ${AWS_REGION} || true
+
+aws apigateway put-integration \
+    --rest-api-id ${API_ID} \
+    --resource-id ${DRIFT_RESOURCE_ID} \
+    --http-method OPTIONS \
+    --type MOCK \
+    --request-templates '{"application/json":"{\"statusCode\": 200}"}' \
+    --region ${AWS_REGION}
+
+aws apigateway put-method-response \
+    --rest-api-id ${API_ID} \
+    --resource-id ${DRIFT_RESOURCE_ID} \
+    --http-method OPTIONS \
+    --status-code 200 \
+    --response-models '{"application/json": "Empty"}' \
+    --response-parameters '{"method.response.header.Access-Control-Allow-Headers": true, "method.response.header.Access-Control-Allow-Methods": true, "method.response.header.Access-Control-Allow-Origin": true}' \
+    --region ${AWS_REGION} || true
+
+aws apigateway put-integration-response \
+    --rest-api-id ${API_ID} \
+    --resource-id ${DRIFT_RESOURCE_ID} \
+    --http-method OPTIONS \
+    --status-code 200 \
+    --response-parameters '{"method.response.header.Access-Control-Allow-Headers": "'"'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"'", "method.response.header.Access-Control-Allow-Methods": "'"'GET,OPTIONS'"'", "method.response.header.Access-Control-Allow-Origin": "'"'*'"'"}' \
+    --region ${AWS_REGION} || true
+
+# 7. Grant permission
+aws lambda add-permission \
+    --function-name ${FUNCTION_NAME} \
+    --statement-id apigateway-drift-$(date +%s) \
+    --action lambda:InvokeFunction \
+    --principal apigateway.amazonaws.com \
+    --source-arn "arn:aws:execute-api:${AWS_REGION}:${ACCOUNT_ID}:${API_ID}/*/*/api/model/drift" \
+    --region ${AWS_REGION} || true
 
 # Add CORS for /predict
 echo "Adding CORS for /predict..."

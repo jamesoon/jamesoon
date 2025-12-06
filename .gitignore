@@ -24,6 +24,7 @@ MANIFEST
 # Virtual Environments
 .env
 .venv
+.venv312
 env/
 venv/
 ENV/
@@ -59,8 +60,19 @@ Thumbs.db
 
 # Project Specific
 model.pkl
+model.tar.gz
 *.parquet
 _archive/
+*.log
+response.json
+response_verify.json
+push_error.log
+push_output.log
+
+# Backend Artifacts
+backend/package_trading/
+backend/lambda_trading.zip
+backend/lambda_function.zip
 
 # Lambda Dependencies
 lambda_market_data_package/

@@ -1,0 +1,354 @@
+[
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-07"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-08"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-09"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-10"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-13"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-14"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-15"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-16"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-17"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-20"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-21"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-22"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-23"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-24"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-27"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-28"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-29"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-30"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-10-31"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-03"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-04"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-05"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-06"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-07"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-10"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-11"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-12"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-13"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-14"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-17"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-18"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-19"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-20"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-21"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-24"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-25"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-26"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-27"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-11-28"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-12-01"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-12-02"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-12-03"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-12-04"
+  },
+  {
+    "userId": "MARKET#SPY",
+    "itemType": "DATE#2025-12-05"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-07"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-08"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-09"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-10"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-13"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-14"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-15"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-16"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-17"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-20"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-21"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-22"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-23"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-24"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-27"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-28"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-29"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-30"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-10-31"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-03"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-04"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-05"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-06"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-07"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-10"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-11"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-12"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-13"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-14"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-17"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-18"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-19"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-20"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-21"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-24"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-25"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-26"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-27"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-11-28"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-12-01"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-12-02"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-12-03"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-12-04"
+  },
+  {
+    "userId": "PREDICTION#SPY",
+    "itemType": "DATE#2025-12-05"
+  }
+]

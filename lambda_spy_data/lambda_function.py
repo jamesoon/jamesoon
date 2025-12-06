@@ -4,6 +4,7 @@ import boto3
 import pandas as pd
 from io import BytesIO
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 # Try to use awswrangler (from AWS Data Wrangler layer) or fallback to pyarrow
 try:
@@ -17,11 +18,15 @@ except ImportError:
         raise ImportError("Neither awswrangler nor pyarrow available")
 
 s3_client = boto3.client('s3')
+dynamodb = boto3.resource('dynamodb')
+TABLE_NAME = os.environ.get('DYNAMODB_TABLE', 'TradingApp')
+table = dynamodb.Table(TABLE_NAME)
 
 def lambda_handler(event, context):
     """
     Lambda function to fetch SPY price data from S3
     Returns current price, historical data, and key metrics
+    Can be triggered by API Gateway (GET) or EventBridge (Scheduled)
     """
     
     # Get bucket and file info from environment or defaults
@@ -29,8 +34,11 @@ def lambda_handler(event, context):
     file_key = os.environ.get('S3_FILE_KEY', 'market_data_normalized.parquet')
     
     try:
-        # Handle CORS preflight
-        if event.get('httpMethod') == 'OPTIONS':
+        # Check if triggered by EventBridge (Scheduled Event)
+        is_scheduled_event = event.get('source') == 'aws.events'
+        
+        # Handle CORS preflight for API Gateway
+        if not is_scheduled_event and event.get('httpMethod') == 'OPTIONS':
             return {
                 'statusCode': 200,
                 'headers': get_cors_headers(),
@@ -53,11 +61,18 @@ def lambda_handler(event, context):
             df = parquet_file.to_pandas()
         
         print(f"Data shape: {df.shape}")
-        print(f"Columns: {df.columns.tolist()}")
-        print(f"Index: {df.index}")
         
         # Extract SPY data
         spy_data = extract_spy_data(df)
+        
+        # If scheduled event, write to DynamoDB
+        if is_scheduled_event:
+            print("Triggered by EventBridge: Recording SPY data to DynamoDB")
+            record_spy_data(spy_data)
+            return {
+                'statusCode': 200,
+                'body': json.dumps({'message': 'Successfully recorded SPY data'})
+            }
         
         return {
             'statusCode': 200,
@@ -74,6 +89,39 @@ def lambda_handler(event, context):
         import traceback
         traceback.print_exc()
         return error_response(500, f'Error processing data: {str(e)}')
+
+
+def record_spy_data(spy_data):
+    """
+    Record SPY data to DynamoDB
+    PK: MARKET#SPY
+    SK: DATE#<YYYY-MM-DD>
+    """
+    try:
+        # spy_data['lastDataDate'] is YYYY-MM-DD
+        date_str = spy_data['lastDataDate']
+        
+        item = {
+            'userId': 'MARKET#SPY',  # Using userId as PK to fit existing schema if key is userId
+            'itemType': f'DATE#{date_str}',
+            'date': date_str,
+            'open': Decimal(str(spy_data['open'])),
+            'high': Decimal(str(spy_data['dayHigh'])),
+            'low': Decimal(str(spy_data['dayLow'])),
+            'close': Decimal(str(spy_data['currentPrice'])),
+            'volume': int(spy_data['volume']),
+            'updatedAt': datetime.utcnow().isoformat()
+        }
+        
+        # Note: The existing table uses 'userId' as PK and 'itemType' as SK based on lambda_trading.py
+        # We will reuse this schema. PK=MARKET#SPY, SK=DATE#YYYY-MM-DD
+        
+        table.put_item(Item=item)
+        print(f"Recorded SPY data for {date_str} to DynamoDB")
+        
+    except Exception as e:
+        print(f"Error recording to DynamoDB: {str(e)}")
+        raise e
 
 
 def extract_spy_data(df):
@@ -154,7 +202,11 @@ def extract_spy_data(df):
     for idx, row in chart_data_df.iterrows():
         chart_data.append({
             'date': idx.strftime('%b %d'),
-            'price': float(row.get('Close', row.get('close', 0)))
+            'price': float(row.get('Close', row.get('close', 0))),
+            'open': float(row.get('Open', row.get('open', 0))),
+            'high': float(row.get('High', row.get('high', 0))),
+            'low': float(row.get('Low', row.get('low', 0))),
+            'close': float(row.get('Close', row.get('close', 0)))
         })
     
     # Build response

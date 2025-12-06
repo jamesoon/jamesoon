@@ -30,7 +30,7 @@ aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --
 # 3. Create Dockerfile
 echo "Step 3: Creating Dockerfile..."
 BUILD_DIR=$(mktemp -d)
-cp "/Users/jamesoon/Library/Mobile Documents/com~apple~CloudDocs/Desktop/PROJECTS/SUTD/MSTR-DAIE/MLOPS/Project/lambda_data_updater/lambda_function.py" $BUILD_DIR/
+cp "lambda_data_updater/lambda_function.py" $BUILD_DIR/
 
 cat > $BUILD_DIR/Dockerfile <<EOF
 FROM public.ecr.aws/lambda/python:3.11
@@ -40,6 +40,7 @@ RUN pip install pandas==2.1.4 yfinance>=0.2.40 boto3==1.34.10 pyarrow==14.0.1 re
 
 # Copy function code
 COPY lambda_function.py \${LAMBDA_TASK_ROOT}
+RUN chmod 644 \${LAMBDA_TASK_ROOT}/lambda_function.py
 
 # Set the CMD to your handler
 CMD [ "lambda_function.lambda_handler" ]

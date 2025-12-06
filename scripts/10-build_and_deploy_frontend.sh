@@ -9,9 +9,21 @@ AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 S3_BUCKET_NAME="ml-model-frontend-$AWS_ACCOUNT_ID"
 API_GATEWAY_ID="${API_GATEWAY_ID:-0qoytg0cfg}"
 
-# Set API Gateway URL for frontend
+# Load Market Data API URL from config
+if [ -f "config/market_data_api.txt" ]; then
+    MARKET_DATA_API_URL=$(grep "^MARKET_DATA_API_URL=" config/market_data_api.txt | cut -d'=' -f2-)
+fi
+
+# Load Trading API URL from config
+if [ -f "config/trading_api.txt" ]; then
+    TRADING_API_URL=$(grep "^TRADING_API_URL=" config/trading_api.txt | cut -d'=' -f2-)
+fi
+
+# Set API Gateway URLs for frontend
 export REACT_APP_SPY_DATA_API="https://$API_GATEWAY_ID.execute-api.$AWS_REGION.amazonaws.com/prod/api/spy-data"
 export REACT_APP_PREDICTION_API="https://$API_GATEWAY_ID.execute-api.$AWS_REGION.amazonaws.com/prod/predict"
+export REACT_APP_MARKET_DATA_API="${MARKET_DATA_API_URL:-https://0qoytg0cfg.execute-api.ap-southeast-1.amazonaws.com/prod/api/market-indices}"
+export REACT_APP_TRADING_API="${TRADING_API_URL:-}"
 
 echo "========================================="
 echo "Deploying Frontend"
@@ -19,6 +31,8 @@ echo "========================================="
 echo "S3 Bucket: $S3_BUCKET_NAME"
 echo "SPY Data API: $REACT_APP_SPY_DATA_API"
 echo "Prediction API: $REACT_APP_PREDICTION_API"
+echo "Market Data API: $REACT_APP_MARKET_DATA_API"
+echo "Trading API: $REACT_APP_TRADING_API"
 echo ""
 
 echo "Checking for S3 bucket: $S3_BUCKET_NAME..."
@@ -60,7 +74,11 @@ EOF
 echo "Building the React frontend application..."
 cd frontend
 npm install
-REACT_APP_SPY_DATA_API=$REACT_APP_SPY_DATA_API REACT_APP_PREDICTION_API=$REACT_APP_PREDICTION_API npm run build
+REACT_APP_SPY_DATA_API=$REACT_APP_SPY_DATA_API \
+REACT_APP_PREDICTION_API=$REACT_APP_PREDICTION_API \
+REACT_APP_MARKET_DATA_API=$REACT_APP_MARKET_DATA_API \
+REACT_APP_TRADING_API=$REACT_APP_TRADING_API \
+npm run build
 cd ..
 
 echo "Uploading frontend build to S3 bucket..."

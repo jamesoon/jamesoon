@@ -86,13 +86,13 @@ const Portfolio: React.FC = () => {
   useEffect(() => {
     const fetchMarketData = async () => {
       setLoading(true);
-      
+
       // Get API URL from environment variable or use placeholder
       const API_URL = process.env.REACT_APP_MARKET_DATA_API || 'https://your-api-id.execute-api.ap-southeast-1.amazonaws.com/prod/api/market-indices';
-      
+
       try {
         console.log('Fetching market data from:', API_URL);
-        
+
         const response = await fetch(API_URL, {
           method: 'GET',
           headers: {
@@ -106,11 +106,18 @@ const Portfolio: React.FC = () => {
 
         const data = await response.json();
         console.log('Market data received:', data);
-        
-        setMarketData(data);
+
+        if (Array.isArray(data)) {
+          setMarketData(data);
+        } else if (data && Array.isArray(data.data)) {
+          setMarketData(data.data);
+        } else {
+          console.warn('Market data is not an array, using fallback');
+          setMarketData(generateFallbackData());
+        }
       } catch (error) {
         console.error('Error fetching market data:', error);
-        
+
         // Fallback to simulated data if API fails
         console.log('Using fallback simulated data');
         const fallbackData = generateFallbackData();
@@ -138,22 +145,22 @@ const Portfolio: React.FC = () => {
       const daysToGenerate = 90;
       let currentPrice = index.startValue;
       const trend = (index.current - index.startValue) / daysToGenerate;
-      
+
       for (let i = daysToGenerate; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
         if (date.getDay() === 0 || date.getDay() === 6) continue;
-        
+
         const trendComponent = trend;
         const randomWalk = (Math.random() - 0.5) * currentPrice * index.volatility;
         currentPrice += trendComponent + randomWalk;
-        
+
         const dayVolatility = currentPrice * index.volatility * 0.5;
         const open = currentPrice + (Math.random() - 0.5) * dayVolatility;
         const close = currentPrice + (Math.random() - 0.5) * dayVolatility;
         const high = Math.max(open, close) + Math.random() * dayVolatility;
         const low = Math.min(open, close) - Math.random() * dayVolatility;
-        
+
         chartData.push({
           date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           open: Number(open.toFixed(2)),
@@ -163,7 +170,7 @@ const Portfolio: React.FC = () => {
           openClose: [open, close],
         });
       }
-      
+
       const current = chartData[chartData.length - 1]?.close || index.current;
       const previous = chartData[chartData.length - 2]?.close || current;
       const change = current - previous;
@@ -193,7 +200,7 @@ const Portfolio: React.FC = () => {
           </Box>
         ) : (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
-            {marketData.map((index) => (
+            {Array.isArray(marketData) && marketData.map((index) => (
               <Card
                 key={index.name}
                 sx={{

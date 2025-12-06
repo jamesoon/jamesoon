@@ -19,7 +19,7 @@ app = Flask(__name__)
 
 # AWS Configuration
 S3_BUCKET = os.environ.get('S3_BUCKET_NAME', 'your-market-data-bucket')
-S3_KEY = os.environ.get('S3_DATA_KEY', 'market-data/latest.parquet')
+S3_KEY = os.environ.get('S3_DATA_KEY', 'market_data_normalized.parquet')
 USE_S3 = os.environ.get('USE_S3', 'true').lower() == 'true'
 
 # Initialize S3 client
@@ -37,12 +37,12 @@ if USE_S3:
 TICKERS = {
     "SPY": "SPY",
     "QQQ": "QQQ",
-    "GOLD": "GLD",
-    "OIL": "USO",
+    "GOLD": "GOLD",  # S3 data uses GOLD (not GLD)
+    "OIL": "OIL",    # S3 data uses OIL (not USO)
     "TLT": "TLT",
     "SHY": "SHY",
-    "VIX": "^VIX",
-    "DXY": "DX-Y.NYB",  # US Dollar Index on Yahoo
+    "VIX": "VIX",    # S3 data uses VIX (not ^VIX)
+    "DXY": "DXY",    # S3 data uses DXY (not DX-Y.NYB)
 }
 
 # Default lags (will be overridden by model artifact if present)
@@ -54,23 +54,61 @@ _cache_timestamp = None
 
 # Load the model artifact
 try:
-    with open('ml_source/model.pkl', 'rb') as f:
+    # Debug: List files
+    print(f"Current CWD: {os.getcwd()}")
+    print(f"Files in CWD: {os.listdir('.')}")
+    
+    # Try loading from current directory (Docker/Lambda) first, then ml_source (Local)
+    model_path = 'model.pkl'
+    if not os.path.exists(model_path):
+        model_path = 'ml_source/model.pkl'
+        
+    with open(model_path, 'rb') as f:
         artifact = pickle.load(f)
+    
+    print(f"DEBUG: Artifact loaded. Type: {type(artifact)}")
     
     # Handle both old format (just model) and new format (artifact dict)
     if isinstance(artifact, dict):
+        print(f"DEBUG: Artifact keys: {artifact.keys()}")
+        # Load Linear Model (for price targets)
         model = artifact.get('model')
+        if model is None:
+            model = artifact.get('linear_model')
+            
+        # Load Logistic Model (for signals)
+        logistic_model = artifact.get('logistic_model')
+        threshold = artifact.get('threshold', 0.5)
+        
+        if model is None:
+            print("DEBUG: Linear model missing!")
+        else:
+            print(f"DEBUG: Linear Model loaded. Type: {type(model)}")
+            
+        if logistic_model is None:
+            print("DEBUG: Logistic model missing! Will fallback to linear model for signals.")
+        else:
+            print(f"DEBUG: Logistic Model loaded. Type: {type(logistic_model)}")
+            print(f"DEBUG: Threshold: {threshold}")
+            
         feature_columns = artifact.get('feature_columns')
         lags = artifact.get('lags', LAGS)
         train_start_date = artifact.get('train_start_date', '2015-01-01')
     else:
         # Legacy format: just the model
         model = artifact
+        logistic_model = None
+        threshold = 0.5
         feature_columns = None
         lags = LAGS
         train_start_date = '2015-01-01'
-except FileNotFoundError:
+except Exception as e:
+    print(f"ERROR loading model: {e}")
+    import traceback
+    traceback.print_exc()
     model = None
+    logistic_model = None
+    threshold = 0.5
     feature_columns = None
     lags = LAGS
     train_start_date = '2015-01-01'
@@ -164,14 +202,15 @@ def compute_base_features(raw):
     Compute all base (non-lagged) features from raw price data.
     """
     # Extract per-symbol data for convenience
-    spy = raw[TICKERS["SPY"]] if ("SPY", "Close") in raw.columns else raw["SPY"]
-    qqq = raw[TICKERS["QQQ"]] if ("QQQ", "Close") in raw.columns else raw["QQQ"]
-    gld = raw[TICKERS["GOLD"]] if ("GLD", "Close") in raw.columns else raw["GOLD"]
-    uso = raw[TICKERS["OIL"]] if ("USO", "Close") in raw.columns else raw["OIL"]
-    tlt = raw[TICKERS["TLT"]] if ("TLT", "Close") in raw.columns else raw["TLT"]
-    shy = raw[TICKERS["SHY"]] if ("SHY", "Close") in raw.columns else raw["SHY"]
-    vix = raw[TICKERS["VIX"]] if ("^VIX", "Close") in raw.columns else raw["^VIX"]
-    dxy = raw[TICKERS["DXY"]] if ("DX-Y.NYB", "Close") in raw.columns else raw["DX-Y.NYB"]
+    # Use TICKERS mapping for both MultiIndex check and flat column access
+    spy = raw[TICKERS["SPY"]] if (TICKERS["SPY"], "Close") in raw.columns else raw[TICKERS["SPY"]]
+    qqq = raw[TICKERS["QQQ"]] if (TICKERS["QQQ"], "Close") in raw.columns else raw[TICKERS["QQQ"]]
+    gld = raw[TICKERS["GOLD"]] if (TICKERS["GOLD"], "Close") in raw.columns else raw[TICKERS["GOLD"]]
+    uso = raw[TICKERS["OIL"]] if (TICKERS["OIL"], "Close") in raw.columns else raw[TICKERS["OIL"]]
+    tlt = raw[TICKERS["TLT"]] if (TICKERS["TLT"], "Close") in raw.columns else raw[TICKERS["TLT"]]
+    shy = raw[TICKERS["SHY"]] if (TICKERS["SHY"], "Close") in raw.columns else raw[TICKERS["SHY"]]
+    vix = raw[TICKERS["VIX"]] if (TICKERS["VIX"], "Close") in raw.columns else raw[TICKERS["VIX"]]
+    dxy = raw[TICKERS["DXY"]] if (TICKERS["DXY"], "Close") in raw.columns else raw[TICKERS["DXY"]]
 
     def get_close(df):
         """Extract Close or Adj Close column, handling both MultiIndex and flat columns."""
@@ -205,6 +244,30 @@ def compute_base_features(raw):
             else:
                 raise KeyError(f"Could not find Volume in columns: {list(df.columns)}")
 
+    # Initialize features DataFrame on SPY's index
+    # features = pd.DataFrame(index=spy_close.index) # Moved down
+    
+    # Debug: Check data sizes
+    print(f"DEBUG: compute_base_features - raw shape: {raw.shape}")
+    
+    # Fix data alignment: Normalize index to date and aggregate
+    # This handles cases where different tickers have slightly different timestamps (e.g. 05:00 vs 06:00)
+    # causing interleaved NaNs.
+    if not raw.empty:
+        raw.index = raw.index.normalize()
+        raw = raw.groupby(raw.index).max()
+        print(f"DEBUG: compute_base_features - raw shape after normalize/groupby: {raw.shape}")
+
+    # Re-extract per-symbol data after alignment
+    spy = raw[TICKERS["SPY"]] if (TICKERS["SPY"], "Close") in raw.columns else raw[TICKERS["SPY"]]
+    qqq = raw[TICKERS["QQQ"]] if (TICKERS["QQQ"], "Close") in raw.columns else raw[TICKERS["QQQ"]]
+    gld = raw[TICKERS["GOLD"]] if (TICKERS["GOLD"], "Close") in raw.columns else raw[TICKERS["GOLD"]]
+    uso = raw[TICKERS["OIL"]] if (TICKERS["OIL"], "Close") in raw.columns else raw[TICKERS["OIL"]]
+    tlt = raw[TICKERS["TLT"]] if (TICKERS["TLT"], "Close") in raw.columns else raw[TICKERS["TLT"]]
+    shy = raw[TICKERS["SHY"]] if (TICKERS["SHY"], "Close") in raw.columns else raw[TICKERS["SHY"]]
+    vix = raw[TICKERS["VIX"]] if (TICKERS["VIX"], "Close") in raw.columns else raw[TICKERS["VIX"]]
+    dxy = raw[TICKERS["DXY"]] if (TICKERS["DXY"], "Close") in raw.columns else raw[TICKERS["DXY"]]
+
     # We'll work with Adjusted Close and Volume where applicable
     spy_close = get_close(spy).copy()
     spy_vol = get_volume(spy).copy()
@@ -219,6 +282,13 @@ def compute_base_features(raw):
 
     # Initialize features DataFrame on SPY's index
     features = pd.DataFrame(index=spy_close.index)
+
+    print(f"DEBUG: compute_base_features - spy_close len: {len(spy_close)}")
+    if len(spy_close) > 0:
+        print(f"DEBUG: spy_close head:\n{spy_close.head()}")
+        print(f"DEBUG: spy_close tail:\n{spy_close.tail()}")
+    else:
+        print("DEBUG: spy_close is EMPTY!")
 
     # --- SPY-specific features ---
     features["spy_ret_1d"] = spy_close.pct_change(1)
@@ -289,9 +359,23 @@ def add_lagged_features(features, lags=LAGS):
     for col in features.columns:
         for lag in lags:
             features_lagged[f"{col}_lag{lag}"] = features[col].shift(lag)
-    # Drop rows with NaNs introduced by lags
-    features_lagged = features_lagged.dropna()
-    return features_lagged
+    # Drop rows with NaN, but keep track of how many we had before
+    rows_before = len(features_lagged)
+    
+    # Debug: Check for NaNs
+    print("DEBUG: Feature NaN counts before dropna:")
+    print(features_lagged.isna().sum())
+    
+    features_clean = features_lagged.dropna()
+    rows_after = len(features_clean)
+    
+    if rows_after == 0:
+        print(f"DEBUG: All {rows_before} rows dropped!")
+        print(f"DEBUG: Sample features_lagged:\n{features_lagged.tail()}")
+        raise ValueError(f"All {rows_before} rows were dropped after dropna(). "
+                       f"This suggests data alignment issues. "
+                       f"NaN counts per column:\n{features_lagged.isna().sum()}")
+    return features_clean
 
 
 def run_inference(ticker=None, date=None):
@@ -325,7 +409,14 @@ def run_inference(ticker=None, date=None):
         
         # Filter to requested date if provided
         if date:
-            raw_prices = raw_prices[raw_prices.index <= pd.to_datetime(date)]
+            cutoff_date = pd.to_datetime(date)
+            # Handle timezone comparison issue
+            if raw_prices.index.tz is not None and cutoff_date.tz is None:
+                cutoff_date = cutoff_date.tz_localize('UTC')
+            elif raw_prices.index.tz is None and cutoff_date.tz is not None:
+                cutoff_date = cutoff_date.tz_localize(None)
+                
+            raw_prices = raw_prices[raw_prices.index <= cutoff_date]
         
         # Ensure we have enough history
         if len(raw_prices) < 70:
@@ -356,23 +447,39 @@ def run_inference(ticker=None, date=None):
     latest_features = X_all.iloc[-1:]
     latest_date = latest_features.index[0]
     
-    # Make prediction
+    # Make prediction (Linear Regression for targets)
     try:
         pred_ret = float(model.predict(latest_features)[0])
     except Exception as e:
         raise ValueError(f"Failed to make prediction: {str(e)}")
     
+    # Make prediction (Logistic Regression for signal)
+    prob_up = 0.5
+    if logistic_model:
+        try:
+            prob_up = float(logistic_model.predict_proba(latest_features)[0, 1])
+        except Exception as e:
+            print(f"Warning: Logistic prediction failed: {e}")
+            
     # Map predicted return to prices
     latest_spy_close = float(recent_spy_close.reindex(recent_lagged.index).iloc[-1])
     pred_open_930 = latest_spy_close
     pred_close_1600 = pred_open_930 * (1.0 + pred_ret)
     pred_intraday_change = pred_close_1600 - pred_open_930
     
-    # BUY/SELL signal based on predicted return
-    signal = "BUY" if pred_ret > 0 else "SELL"
+    # BUY/SELL signal based on Logistic Probability (and optionally positive return)
+    # We require BOTH high probability AND positive predicted return for a strong BUY
+    if logistic_model:
+        if (prob_up >= threshold) and (pred_ret > 0):
+            signal = "BUY"
+        else:
+            signal = "SELL"
+    else:
+        # Fallback to linear model only
+        signal = "BUY" if pred_ret > 0 else "SELL"
     
     # Convert prediction to binary (0 = DOWN/SELL, 1 = UP/BUY)
-    prediction_binary = 1 if pred_ret > 0 else 0
+    prediction_binary = 1 if signal == "BUY" else 0
     
     return {
         "signal_date": latest_date.strftime("%Y-%m-%d") if hasattr(latest_date, 'strftime') else str(latest_date),
@@ -380,9 +487,112 @@ def run_inference(ticker=None, date=None):
         "pred_close_1600": round(pred_close_1600, 2),
         "pred_intraday_change": round(pred_intraday_change, 4),
         "pred_intraday_return": round(pred_ret, 6),
+        "prob_up": round(prob_up, 4),
+        "threshold": round(threshold, 4),
         "signal": signal,
         "prediction": [prediction_binary],  # For backward compatibility with frontend
     }
+
+
+
+def calculate_model_drift(days=30):
+    """
+    Backtest the model over the last N days to calculate drift metrics.
+    """
+    metrics = {
+        'tp': 0, 'fp': 0, 'tn': 0, 'fn': 0,
+        'total_predictions': 0,
+        'accuracy': 0.0,
+        'precision': 0.0,
+        'recall': 0.0,
+        'f1': 0.0,
+        'dates': [],
+        'actual_returns': [],
+        'predicted_signals': []
+    }
+    
+    try:
+        # Load data
+        df = get_market_data(use_cache=True)
+        
+        # Get SPY Close for actuals
+        # Handle MultiIndex or flat columns
+        spy_close = None
+        if isinstance(df.columns, pd.MultiIndex):
+            # Try to find SPY Close
+            if ('SPY', 'Close') in df.columns:
+                spy_close = df[('SPY', 'Close')]
+            elif ('SPY', 'Adj Close') in df.columns:
+                spy_close = df[('SPY', 'Adj Close')]
+        else:
+            if 'Close' in df.columns:
+                spy_close = df['Close']
+            elif 'Adj Close' in df.columns:
+                spy_close = df['Adj Close']
+                
+        if spy_close is None:
+            raise ValueError("Could not find SPY Close data for backtesting")
+            
+        # Get last N valid trading days (excluding last 5 days as we can't know actual return yet)
+        # We need T+5 to exist to evaluate.
+        if len(df) < 6:
+            return metrics
+            
+        valid_dates = df.index[:-5] 
+        test_dates = valid_dates[-days:] if len(valid_dates) >= days else valid_dates
+        
+        for date in test_dates:
+            date_str = date.strftime('%Y-%m-%d')
+            
+            # Run inference for this date
+            try:
+                pred = run_inference(ticker='SPY', date=date_str)
+                signal = pred['signal']
+                
+                # Calculate actual 5-day return
+                loc = df.index.get_loc(date)
+                entry_price = float(spy_close.iloc[loc])
+                exit_price = float(spy_close.iloc[loc + 5])
+                actual_ret = (exit_price - entry_price) / entry_price
+                
+                is_price_up = actual_ret > 0
+                is_buy = signal == 'BUY'
+                
+                if is_buy and is_price_up:
+                    metrics['tp'] += 1
+                elif is_buy and not is_price_up:
+                    metrics['fp'] += 1
+                elif not is_buy and not is_price_up:
+                    metrics['tn'] += 1
+                elif not is_buy and is_price_up:
+                    metrics['fn'] += 1
+                
+                metrics['total_predictions'] += 1
+                metrics['dates'].append(date_str)
+                metrics['actual_returns'].append(actual_ret)
+                metrics['predicted_signals'].append(1 if is_buy else 0)
+                
+            except Exception as e:
+                print(f"Error backtesting date {date_str}: {e}")
+                continue
+                
+        # Derived metrics
+        total = metrics['total_predictions']
+        if total > 0:
+            metrics['accuracy'] = (metrics['tp'] + metrics['tn']) / total
+            if (metrics['tp'] + metrics['fp']) > 0:
+                metrics['precision'] = metrics['tp'] / (metrics['tp'] + metrics['fp'])
+            if (metrics['tp'] + metrics['fn']) > 0:
+                metrics['recall'] = metrics['tp'] / (metrics['tp'] + metrics['fn'])
+            if (metrics['precision'] + metrics['recall']) > 0:
+                metrics['f1'] = 2 * (metrics['precision'] * metrics['recall']) / (metrics['precision'] + metrics['recall'])
+                
+    except Exception as e:
+        print(f"Error calculating drift: {e}")
+        import traceback
+        traceback.print_exc()
+        
+    return metrics
 
 
 @app.route('/healthcheck', methods=['GET'])
@@ -398,6 +608,16 @@ def healthcheck():
         'cache_status': 'loaded' if _market_data_cache is not None else 'empty',
         'timestamp': datetime.now().isoformat()
     }), 200
+
+
+@app.route('/api/model/drift', methods=['GET'])
+def get_drift_metrics():
+    try:
+        metrics = calculate_model_drift(days=30)
+        return jsonify(metrics), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 
 @app.route('/predict', methods=['POST'])
@@ -417,7 +637,9 @@ def predict():
         ticker = data.get('ticker', 'SPY')
         date = data.get('date', None)
         
-        result = run_inference(ticker=ticker, date=date)
+        # Run inference
+        print("DEBUG: STARTING INFERENCE v18")
+        result = run_inference(ticker, date)
         return jsonify(result), 200
             
     except ValueError as e:
@@ -429,6 +651,21 @@ def predict():
             'error': f'Prediction failed: {str(e)}'
         }), 500
 
+
+# Add CORS headers to every response
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    return response
+
+from apig_wsgi import make_lambda_handler
+_handler = make_lambda_handler(app)
+
+def handler(event, context):
+    print("DEBUG: HANDLER INVOKED v22")
+    return _handler(event, context)
 
 if __name__ == '__main__':
     # Pre-load data on startup if using S3

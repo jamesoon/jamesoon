@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface Stock {
   ticker: string;
@@ -26,8 +26,8 @@ interface AppState {
   transactions: Transaction[];
   login: (username: string) => void;
   logout: () => void;
-  buyStock: (ticker: string, shares: number, price: number) => boolean;
-  sellStock: (ticker: string, shares: number, price: number) => boolean;
+  buyStock: (ticker: string, shares: number, price: number) => Promise<boolean>;
+  sellStock: (ticker: string, shares: number, price: number) => Promise<boolean>;
   updateStockPrice: (ticker: string, price: number) => void;
 }
 
@@ -52,10 +52,64 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const initialBalance = 100000;
   const [portfolio, setPortfolio] = useState<Stock[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const TRADING_API = process.env.REACT_APP_TRADING_API || '';
+
+  // Load user data from backend on login
+  const loadUserData = async (username: string) => {
+    if (!TRADING_API) {
+      console.warn('Trading API not configured, using local state only');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Load profile
+      const profileRes = await fetch(`${TRADING_API}/api/trading/profile?username=${encodeURIComponent(username)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        setCashBalance(profileData.cashBalance || 100000);
+      }
+
+      // Load portfolio
+      const portfolioRes = await fetch(`${TRADING_API}/api/trading/portfolio?username=${encodeURIComponent(username)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (portfolioRes.ok) {
+        const portfolioData = await portfolioRes.json();
+        setPortfolio(Array.isArray(portfolioData.portfolio) ? portfolioData.portfolio : []);
+      }
+
+      // Load transactions
+      const transactionsRes = await fetch(`${TRADING_API}/api/trading/transactions?username=${encodeURIComponent(username)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(Array.isArray(transactionsData.transactions) ? transactionsData.transactions : []);
+      }
+
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const login = (username: string) => {
     setUsername(username);
     setIsAuthenticated(true);
+    loadUserData(username);
   };
 
   const logout = () => {
@@ -63,13 +117,41 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setIsAuthenticated(false);
   };
 
-  const buyStock = (ticker: string, shares: number, price: number): boolean => {
+  const buyStock = async (ticker: string, shares: number, price: number): Promise<boolean> => {
     const total = shares * price;
-    
+
     if (total > cashBalance) {
       return false; // Insufficient funds
     }
 
+    // If API is configured, persist to backend
+    if (TRADING_API && username) {
+      try {
+        const response = await fetch(`${TRADING_API}/api/trading/buy`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, ticker, shares, price })
+        });
+
+        if (!response.ok) {
+          console.error('Failed to buy stock on backend');
+          return false;
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          // Reload data from backend
+          await loadUserData(username);
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error('Error buying stock:', error);
+        // Fall through to local update if API fails
+      }
+    }
+
+    // Local-only update (fallback or no API configured)
     // Update cash balance
     setCashBalance(prev => prev - total);
 
@@ -104,15 +186,43 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     return true;
   };
 
-  const sellStock = (ticker: string, shares: number, price: number): boolean => {
+  const sellStock = async (ticker: string, shares: number, price: number): Promise<boolean> => {
     const stock = portfolio.find(s => s.ticker === ticker);
-    
+
     if (!stock || stock.shares < shares) {
       return false; // Insufficient shares
     }
 
     const total = shares * price;
 
+    // If API is configured, persist to backend
+    if (TRADING_API && username) {
+      try {
+        const response = await fetch(`${TRADING_API}/api/trading/sell`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, ticker, shares, price })
+        });
+
+        if (!response.ok) {
+          console.error('Failed to sell stock on backend');
+          return false;
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          // Reload data from backend
+          await loadUserData(username);
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error('Error selling stock:', error);
+        // Fall through to local update if API fails
+      }
+    }
+
+    // Local-only update (fallback or no API configured)
     // Update cash balance
     setCashBalance(prev => prev + total);
 

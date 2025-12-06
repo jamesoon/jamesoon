@@ -28,6 +28,8 @@ curl https://0qoytg0cfg.execute-api.ap-southeast-1.amazonaws.com/prod/api/spy-da
 - **[QUICK_START_SPY_API.md](./QUICK_START_SPY_API.md)** - Quick reference for SPY API
 - **[START_HERE.md](./START_HERE.md)** - Main deployment guide
 - **[DOCKER_DEPLOYMENT_GUIDE.md](./DOCKER_DEPLOYMENT_GUIDE.md)** - Docker deployment strategy
+- **[PROJECT_MAP.md](./docs/PROJECT_MAP.md)** - Map of files to deployed components
+
 
 ## Project Structure
 
@@ -57,29 +59,20 @@ Add the following secrets to your GitHub repository:
 
 Run the following scripts in order to provision the AWS infrastructure:
 
-1.  **`00_setup_aws.sh`**: Prepares AWS environment (ECR repo, EKS cluster, IAM roles).
-2.  **`01_create_model.sh`**: Trains and saves the machine learning model.
-3.  **`02_initial_s3_data_load.py`**: Loads initial data to S3.
-4.  **`03_build_candidate_container.sh`**: Builds the Docker container for the ML model.
-5.  **`04_setup_aws_backend.sh`**: Sets up the backend infrastructure on AWS.
-6.  **`05_deploy_to_aws.sh`**: Deploys the ML model to the EKS cluster.
-7.  **`06_create_lambda_api_gateway.sh`**: Creates the Lambda function and API Gateway for predictions.
-8.  **`07_deploy_market_data_lambda.sh`**: Deploys the market data Lambda function.
-9.  **`08_test_market_data_api.sh`**: Tests the market data API endpoint.
-10. **`09_build_and_deploy_frontend.sh`**: Builds the React app and deploys it to S3.
-11. **`10_setup_cloudfront.sh`**: Creates a CloudFront distribution for the frontend.
-12. **`11_setup_route53.sh`**: Configures Route 53 to point a domain to CloudFront.
-13. **`12_get_cloudfront_info.sh`**: Utility script to retrieve current CloudFront details.
+1.  **`01-setup_aws.sh`**: Prepares AWS environment (ECR repo, EKS cluster, IAM roles).
+2.  **`02-create_model.sh`**: Trains and saves the machine learning model.
+3.  **`03-initial_s3_data_load.py`**: Loads initial data to S3.
+4.  **`04-build_candidate_container.sh`**: Builds the Docker container for the ML model.
+5.  **`05-setup_aws_backend.sh`**: Sets up the backend infrastructure on AWS.
+6.  **`06-deploy_to_aws.sh`**: Deploys the ML model to the EKS cluster.
+7.  **`11-deploy_prediction_lambda.sh`**: Creates the Inference Lambda (Container Image) and API Gateway.
+8.  **`08-deploy_market_data_lambda.sh`**: Deploys the market data Lambda function.
+9.  **`test_market_data_api.sh`**: Tests the market data API endpoint.
+10. **`09-deploy_trading_backend.sh`**: Deploys the trading backend infrastructure.
+11. **`10-build_and_deploy_frontend.sh`**: Builds the React app and deploys it to S3.
+12. **`11-deploy_prediction_service.sh`**: (Alternative) Deploys prediction service to EKS.
+13. **`12-deploy_updater_lambda_container.sh`**: Deploys the data updater lambda.
+14. **`13-setup_cloudfront.sh`**: Creates a CloudFront distribution for the frontend.
+15. **`14-setup_route53.sh`**: Configures Route 53 to point a domain to CloudFront.
 
-### 7. Teardown AWS Infrastructure
 
-To remove all the AWS resources created by this project, run the `13_teardown_aws.sh` script:
-
-```bash
-bash scripts/teardown_aws.sh
-```
-
-This script will:
-- Delete the EKS node group and cluster.
-- Delete the ECR repository.
-- Delete the associated IAM roles.

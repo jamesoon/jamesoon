@@ -52,7 +52,60 @@ EOF
     LAMBDA_ROLE_ARN=$(aws iam get-role --role-name $LAMBDA_ROLE_NAME --query 'Role.Arn' --output text)
 fi
 
-echo "Lambda Role ARN: $LAMBDA_ROLE_ARN"
+# Attach S3 access policy to Lambda role
+echo "Attaching S3 access policy to Lambda role..."
+aws iam put-role-policy \
+    --role-name $LAMBDA_ROLE_NAME \
+    --policy-name S3AccessPolicy \
+    --policy-document '{
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "s3:GetObject",
+                    "s3:ListBucket"
+                ],
+                "Resource": [
+                    "arn:aws:s3:::mdaie-prml-spy-bucket",
+                    "arn:aws:s3:::mdaie-prml-spy-bucket/*"
+                ]
+            }
+        ]
+    }' \
+    --region $AWS_REGION
+
+
+    echo "Lambda Role ARN: $LAMBDA_ROLE_ARN"
+
+# Attach DynamoDB access policy to Lambda role (New)
+echo "Attaching DynamoDB access policy to Lambda role..."
+TABLE_NAME="TradingApp"
+# Get Table ARN
+TABLE_ARN=$(aws dynamodb describe-table --table-name "$TABLE_NAME" --region "$REGION" --query 'Table.TableArn' --output text 2>/dev/null || echo "")
+
+if [ -n "$TABLE_ARN" ]; then
+    aws iam put-role-policy \
+        --role-name $LAMBDA_ROLE_NAME \
+        --policy-name DynamoDBAccessPolicy \
+        --policy-document "{
+            \"Version\": \"2012-10-17\",
+            \"Statement\": [
+                {
+                    \"Effect\": \"Allow\",
+                    \"Action\": [
+                        \"dynamodb:PutItem\",
+                        \"dynamodb:GetItem\",
+                        \"dynamodb:UpdateItem\"
+                    ],
+                    \"Resource\": \"$TABLE_ARN\"
+                }
+            ]
+        }" \
+        --region $AWS_REGION
+else
+    echo "⚠️  Warning: DynamoDB table '$TABLE_NAME' not found. Skipping DynamoDB policy attachment."
+fi
 
 # Package Lambda function
 echo "Packaging Lambda function..."
@@ -63,21 +116,17 @@ mkdir -p lambda_market_data_package
 # Install dependencies with legacy resolver (more compatible)
 echo "Installing Python dependencies..."
 
-# Try with legacy resolver first (works better with --target)
+# Install dependencies with platform flags for AWS Lambda (Linux x86_64)
+echo "Installing Python dependencies for Linux x86_64..."
+
 python3 -m pip install \
+    --platform manylinux2014_x86_64 \
     --target lambda_market_data_package \
-    --use-deprecated=legacy-resolver \
-    yfinance pandas boto3 requests || \
-{
-    echo "Legacy resolver failed, trying without target directory first..."
-    # Alternative: install in temp venv then copy
-    python3 -m venv /tmp/lambda_venv
-    source /tmp/lambda_venv/bin/activate
-    pip install yfinance pandas boto3 requests
-    cp -r /tmp/lambda_venv/lib/python3.*/site-packages/* lambda_market_data_package/
-    deactivate
-    rm -rf /tmp/lambda_venv
-}
+    --implementation cp \
+    --python-version 3.11 \
+    --only-binary=:all: \
+    --upgrade \
+    yfinance pandas requests pyarrow
 
 echo "Checking if yfinance was installed..."
 if [ -d "lambda_market_data_package/yfinance" ]; then
@@ -90,7 +139,7 @@ else
 fi
 
 # Copy Lambda function
-cp backend/lambda_market_data.py lambda_market_data_package/
+cp lambda_spy_data/lambda_function.py lambda_market_data_package/lambda_market_data.py
 
 # Remove unnecessary files to reduce package size
 echo "Removing unnecessary files to reduce package size..."
@@ -108,7 +157,7 @@ find . -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete 2>/dev/null || true
 # Remove test directories (large)
 find . -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
 find . -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
-find . -type d -name "*test*" -exec rm -rf {} + 2>/dev/null || true
+# find . -type d -name "*test*" -exec rm -rf {} + 2>/dev/null || true
 
 # Remove documentation
 find . -type d \( -name "docs" -o -name "doc" \) -exec rm -rf {} + 2>/dev/null || true
@@ -118,11 +167,11 @@ find . -type f \( -name "*.md" -o -name "*.rst" -o -name "*.txt" \) ! -name "*.p
 find . -type f \( -name "*.csv" -o -name "*.xml" \) -delete 2>/dev/null || true
 
 # Remove unnecessary pandas/numpy files
-rm -rf pandas/tests 2>/dev/null || true
-rm -rf numpy/tests 2>/dev/null || true
-rm -rf scipy/tests 2>/dev/null || true
-rm -rf pandas/doc 2>/dev/null || true
-rm -rf numpy/doc 2>/dev/null || true
+# rm -rf pandas/tests 2>/dev/null || true
+# rm -rf numpy/tests 2>/dev/null || true
+# rm -rf scipy/tests 2>/dev/null || true
+# rm -rf pandas/doc 2>/dev/null || true
+# rm -rf numpy/doc 2>/dev/null || true
 
 # Create zip with compression
 echo "Creating deployment package..."
@@ -143,7 +192,7 @@ else
 fi
 
 # Check if package is too large for direct upload (50MB limit)
-if [ "$PACKAGE_SIZE" -gt 50 ]; then
+if [ "$PACKAGE_SIZE" -gt 10 ]; then
     echo "⚠️  Warning: Package size (${PACKAGE_SIZE}MB) exceeds 50MB direct upload limit"
     echo "   Will use S3 for deployment..."
     USE_S3_DEPLOYMENT=true
@@ -180,7 +229,8 @@ if [ "$USE_S3_DEPLOYMENT" = true ]; then
           --timeout 60 \
           --memory-size 512 \
           --region $AWS_REGION \
-          --description "Fetches real-time market data from Yahoo Finance"
+          --environment "Variables={DYNAMODB_TABLE=$TABLE_NAME}" \
+          --description "Fetches real-time market data from S3/Yahoo Finance and records to DB"
     else
         echo "Updating existing Lambda function: $LAMBDA_FUNCTION_NAME..."
         aws lambda update-function-code \
@@ -188,6 +238,12 @@ if [ "$USE_S3_DEPLOYMENT" = true ]; then
           --s3-bucket $S3_BUCKET_NAME \
           --s3-key $S3_KEY \
           --region $AWS_REGION
+          
+        # Update config to include env var
+        aws lambda update-function-configuration \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --environment "Variables={DYNAMODB_TABLE=$TABLE_NAME}" \
+            --region $AWS_REGION
 
         # Wait for update to complete
         aws lambda wait function-updated \
@@ -207,13 +263,20 @@ else
           --timeout 60 \
           --memory-size 512 \
           --region $AWS_REGION \
-          --description "Fetches real-time market data from Yahoo Finance"
+          --environment "Variables={DYNAMODB_TABLE=$TABLE_NAME}" \
+          --description "Fetches real-time market data from S3/Yahoo Finance and records to DB"
     else
         echo "Updating existing Lambda function: $LAMBDA_FUNCTION_NAME..."
         aws lambda update-function-code \
           --function-name $LAMBDA_FUNCTION_NAME \
           --zip-file fileb://lambda_market_data.zip \
           --region $AWS_REGION
+          
+        # Update config to include env var
+        aws lambda update-function-configuration \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --environment "Variables={DYNAMODB_TABLE=$TABLE_NAME}" \
+            --region $AWS_REGION
 
         # Wait for update to complete
         aws lambda wait function-updated \
@@ -221,6 +284,35 @@ else
           --region $AWS_REGION
     fi
 fi
+
+# Add EventBridge Rule for Daily SPY recording (New)
+echo "Setting up EventBridge Rule for Daily Execution..."
+RULE_NAME="DailySPYRecord"
+# Schedule: Daily at 22:00 UTC (after market close)
+SCHEDULE_EXPRESSION="cron(0 22 * * ? *)"
+
+aws events put-rule \
+    --name $RULE_NAME \
+    --schedule-expression "$SCHEDULE_EXPRESSION" \
+    --state ENABLED \
+    --description "Daily SPY price recording" \
+    --region $AWS_REGION
+
+# Add target
+FUNCTION_ARN=$(aws lambda get-function --function-name $LAMBDA_FUNCTION_NAME --query 'Configuration.FunctionArn' --output text --region $AWS_REGION)
+aws events put-targets \
+    --rule $RULE_NAME \
+    --targets "Id"="1","Arn"="$FUNCTION_ARN" \
+    --region $AWS_REGION
+
+# Permission for EventBridge to invoke Lambda
+aws lambda add-permission \
+    --function-name $LAMBDA_FUNCTION_NAME \
+    --statement-id "AllowEventBridgeInvoke-$(date +%s)" \
+    --action "lambda:InvokeFunction" \
+    --principal "events.amazonaws.com" \
+    --source-arn "$(aws events describe-rule --name $RULE_NAME --query 'Arn' --output text --region $AWS_REGION)" \
+    --region $AWS_REGION 2>/dev/null || echo "EventBridge permission already exists"
 
 echo "Lambda function deployed successfully!"
 

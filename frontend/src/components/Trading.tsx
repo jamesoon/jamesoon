@@ -36,7 +36,7 @@ const Trading: React.FC = () => {
     severity: 'success' | 'error';
   }>({ open: false, message: '', severity: 'success' });
 
-  const handleTrade = () => {
+  const handleTrade = async () => {
     if (!ticker || shares <= 0 || price <= 0) {
       setSnackbar({
         open: true,
@@ -58,7 +58,7 @@ const Trading: React.FC = () => {
 
     let success = false;
     if (tradeType === 'BUY') {
-      success = buyStock('SPY', shares, price);
+      success = await buyStock('SPY', shares, price);
       if (success) {
         setSnackbar({
           open: true,
@@ -75,7 +75,7 @@ const Trading: React.FC = () => {
         });
       }
     } else {
-      success = sellStock('SPY', shares, price);
+      success = await sellStock('SPY', shares, price);
       if (success) {
         setSnackbar({
           open: true,

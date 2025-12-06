@@ -46,8 +46,8 @@ const Prediction: React.FC = () => {
     }
 
     try {
-      // Replace /predict with /health
-      const healthcheckUrl = API_URL.replace('/predict', '/health');
+      // Replace /predict with /healthcheck
+      const healthcheckUrl = API_URL.replace('/predict', '/healthcheck');
       const response = await fetch(healthcheckUrl, {
         method: 'GET',
         headers: {
@@ -88,10 +88,8 @@ const Prediction: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // Send empty body to trigger fallback/dummy prediction for now
-          // ticker: stockTicker.toUpperCase(),
-          // date: selectedDate,
-          // features: [1.0] 
+          ticker: stockTicker.toUpperCase(),
+          date: selectedDate,
         }),
       });
 

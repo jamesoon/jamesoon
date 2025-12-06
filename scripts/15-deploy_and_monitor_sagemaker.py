@@ -11,7 +11,7 @@ BUCKET = sagemaker.Session().default_bucket()
 PREFIX = "sutd-mlops-project"
 MODEL_PATH = "ml_source/model.pkl"
 ENTRY_POINT = "ml_source/sagemaker_inference.py"
-ENDPOINT_NAME = f"spy-prediction-endpoint-{int(time.time())}"
+ENDPOINT_NAME = "spy-prediction-endpoint"
 
 def get_role():
     try:
@@ -36,8 +36,13 @@ def deploy_model():
     
     # Let's create a model.tar.gz from model.pkl
     os.system(f"tar -czf model.tar.gz -C ml_source model.pkl")
-    model_data_path = f"model.tar.gz"
-
+    
+    # Upload model to S3 manually to ensure we have a valid S3 URI
+    model_key = f"{PREFIX}/model/model.tar.gz"
+    model_s3_uri = f"s3://{BUCKET}/{model_key}"
+    print(f"Uploading model to {model_s3_uri}...")
+    sagemaker.Session().upload_data("model.tar.gz", bucket=BUCKET, key_prefix=f"{PREFIX}/model")
+    
     # Data Capture Configuration
     data_capture_config = DataCaptureConfig(
         enable_capture=True,
@@ -50,10 +55,10 @@ def deploy_model():
 
     # Define Model
     sklearn_model = SKLearnModel(
-        model_data=model_data_path,
+        model_data=model_s3_uri,
         role=role,
         entry_point=ENTRY_POINT,
-        framework_version="1.0-1", # Adjust based on needed scikit-learn version
+        framework_version="1.2-1", # Upgrading to 1.2-1 to fix sagemaker_inference import error
         py_version="py3",
         sagemaker_session=sagemaker.Session()
     )
@@ -108,7 +113,7 @@ def setup_monitoring(predictor):
     # Create Monitoring Schedule
     print("Creating monitoring schedule...")
     my_monitor.create_monitoring_schedule(
-        monitor_schedule_name=f"spy-monitor-{int(time.time())}",
+        monitor_schedule_name="spy-monitor-schedule",
         endpoint_input=predictor.endpoint_name,
         output_s3_uri=f"s3://{BUCKET}/{PREFIX}/monitoring-reports",
         statistics=my_monitor.baseline_statistics(),

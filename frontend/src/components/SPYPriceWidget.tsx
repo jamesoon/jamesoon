@@ -18,14 +18,12 @@ import {
   ExpandLess,
 } from '@mui/icons-material';
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Area,
-  AreaChart,
 } from 'recharts';
 
 interface SPYData {
@@ -41,8 +39,54 @@ interface SPYData {
   fiftyTwoWeekHigh: number;
   fiftyTwoWeekLow: number;
   lastUpdated: string;
-  chartData: Array<{ date: string; price: number; }>;
+  dataSource?: string;
+  chartData: Array<{
+    date: string;
+    price: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+  }>;
 }
+
+const Candlestick = (props: any) => {
+  const {
+    fill,
+    x,
+    y,
+    width,
+    height,
+    low,
+    high,
+    openClose: [open, close],
+  } = props;
+  const isGrowing = close > open;
+  const color = isGrowing ? '#4caf50' : '#f44336';
+  const ratio = Math.abs(height / (open - close));
+
+  return (
+    <g stroke={color} fill="none" strokeWidth="2">
+      <path
+        d={`
+          M ${x + width / 2}, ${y}
+          L ${x + width / 2}, ${y + height}
+        `}
+      />
+      <path
+        d={`
+          M ${x}, ${y + (isGrowing ? (high - close) : (high - open)) * ratio}
+          L ${x + width}, ${y + (isGrowing ? (high - close) : (high - open)) * ratio}
+          L ${x + width}, ${y + (isGrowing ? (high - open) : (high - close)) * ratio}
+          L ${x}, ${y + (isGrowing ? (high - open) : (high - close)) * ratio}
+          L ${x}, ${y + (isGrowing ? (high - close) : (high - open)) * ratio}
+        `}
+        fill={color}
+        strokeWidth="0"
+      />
+    </g>
+  );
+};
 
 interface CustomTooltipProps {
   active?: boolean;
@@ -58,7 +102,16 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label })
           {label}
         </Typography>
         <Typography variant="body2" sx={{ color: '#667eea', fontWeight: 600 }}>
-          ${payload[0].value.toFixed(2)}
+          Close: ${payload[0].payload.close.toFixed(2)}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Open: ${payload[0].payload.open.toFixed(2)}
+        </Typography>
+        <Typography variant="caption" display="block">
+          High: ${payload[0].payload.high.toFixed(2)}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Low: ${payload[0].payload.low.toFixed(2)}
         </Typography>
       </Paper>
     );
@@ -86,7 +139,7 @@ const SPYPriceWidget: React.FC = () => {
       setError(null);
 
       // Get API URL from environment variable
-      const SPY_DATA_URL = process.env.REACT_APP_SPY_DATA_API || 'https://0qoytg0cfg.execute-api.ap-southeast-1.amazonaws.com/prod/api/spy-data';
+      const SPY_DATA_URL = process.env.REACT_APP_MARKET_DATA_API || process.env.REACT_APP_SPY_DATA_API || 'https://0qoytg0cfg.execute-api.ap-southeast-1.amazonaws.com/prod/api/market-indices';
 
       try {
         console.log('Fetching SPY data from:', SPY_DATA_URL);
@@ -125,8 +178,7 @@ const SPYPriceWidget: React.FC = () => {
     const change = currentPrice - previousClose;
     const changePercent = (change / previousClose) * 100;
 
-    // Generate 3-month historical data
-    const chartData: Array<{ date: string; price: number; }> = [];
+    const chartData: Array<{ date: string; price: number; open: number; high: number; low: number; close: number; }> = [];
     const today = new Date();
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(today.getMonth() - 3);
@@ -135,10 +187,21 @@ const SPYPriceWidget: React.FC = () => {
     for (let d = new Date(threeMonthsAgo); d <= today; d.setDate(d.getDate() + 1)) {
       // Skip weekends
       if (d.getDay() !== 0 && d.getDay() !== 6) {
-        basePrice += (Math.random() - 0.48) * 5; // Slight upward trend
+        const change = (Math.random() - 0.48) * 5;
+        const open = basePrice;
+        const close = basePrice + change;
+        const high = Math.max(open, close) + Math.random() * 2;
+        const low = Math.min(open, close) - Math.random() * 2;
+
+        basePrice = close;
+
         chartData.push({
           date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          price: parseFloat(basePrice.toFixed(2)),
+          price: parseFloat(close.toFixed(2)),
+          open: parseFloat(open.toFixed(2)),
+          high: parseFloat(high.toFixed(2)),
+          low: parseFloat(low.toFixed(2)),
+          close: parseFloat(close.toFixed(2)),
         });
       }
     }
@@ -237,6 +300,15 @@ const SPYPriceWidget: React.FC = () => {
           <Typography variant="caption" color="text.secondary">
             S&P 500 ETF • Updated: {spyData.lastUpdated}
           </Typography>
+          <Box sx={{ mt: 0.5 }}>
+            <Chip
+              label={spyData.dataSource === 'S3' ? 'Live Data' : 'Demo Data'}
+              size="small"
+              color={spyData.dataSource === 'S3' ? 'success' : 'warning'}
+              variant="outlined"
+              sx={{ height: 20, fontSize: '0.65rem' }}
+            />
+          </Box>
         </Box>
 
         {/* Expand/Collapse Button */}
@@ -281,13 +353,7 @@ const SPYPriceWidget: React.FC = () => {
           {/* Chart */}
           <Box sx={{ height: 200, mb: 3 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={spyData.chartData}>
-                <defs>
-                  <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#667eea" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#667eea" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+              <BarChart data={spyData.chartData}>
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 11 }}
@@ -304,15 +370,15 @@ const SPYPriceWidget: React.FC = () => {
                   axisLine={false}
                   tickFormatter={(value) => `$${value}`}
                 />
-                <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="price"
-                  stroke="#667eea"
-                  strokeWidth={2}
-                  fill="url(#colorPrice)"
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                <Bar
+                  dataKey="open"
+                  fill="#8884d8"
+                  shape={(props: any) => {
+                    return <Candlestick {...props} low={props.payload.low} high={props.payload.high} openClose={[props.payload.open, props.payload.close]} />;
+                  }}
                 />
-              </AreaChart>
+              </BarChart>
             </ResponsiveContainer>
           </Box>
 
