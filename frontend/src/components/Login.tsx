@@ -152,7 +152,7 @@ const Login: React.FC = () => {
           </Box>
 
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2, textAlign: 'center', opacity: 0.7 }}>
-            v1.07
+            v1.08_github
           </Typography>
         </Box>
       </Paper>
