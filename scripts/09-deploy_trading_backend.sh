@@ -304,7 +304,7 @@ for ROUTE in "${ROUTES[@]}"; do
             --api-id "$API_ID" \
             --route-key "$ROUTE_KEY" \
             --target "integrations/$INTEGRATION_ID" \
-            --region "$REGION" \
+            --region "$REGION"
     else
         echo "✓ Route exists: $ROUTE_KEY"
     fi
