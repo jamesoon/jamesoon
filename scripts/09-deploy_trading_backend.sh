@@ -291,6 +291,7 @@ ROUTES=(
     "GET /api/reports/daily-matrix"
 )
 
+set -x
 for ROUTE in "${ROUTES[@]}"; do
     METHOD=$(echo "$ROUTE" | cut -d' ' -f1)
     PATH=$(echo "$ROUTE" | cut -d' ' -f2)
