@@ -239,6 +239,11 @@ if [ "$USE_S3_DEPLOYMENT" = true ]; then
           --s3-key $S3_KEY \
           --region $AWS_REGION
           
+        # Wait for update to complete
+        aws lambda wait function-updated \
+          --function-name $LAMBDA_FUNCTION_NAME \
+          --region $AWS_REGION
+
         # Update config to include env var
         aws lambda update-function-configuration \
             --function-name $LAMBDA_FUNCTION_NAME \
@@ -272,6 +277,11 @@ else
           --zip-file fileb://lambda_market_data.zip \
           --region $AWS_REGION
           
+        # Wait for update to complete
+        aws lambda wait function-updated \
+          --function-name $LAMBDA_FUNCTION_NAME \
+          --region $AWS_REGION
+
         # Update config to include env var
         aws lambda update-function-configuration \
             --function-name $LAMBDA_FUNCTION_NAME \
