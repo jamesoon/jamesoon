@@ -260,8 +260,7 @@ LOG_GROUP="/aws/lambda/$FUNCTION_NAME"
 if aws logs describe-log-streams \
     --log-group-name "$LOG_GROUP" \
     --region "$REGION" \
-    --max-items 1 \
-    --no-cli-pager >/dev/null 2>&1; then
+    --max-items 1 >/dev/null 2>&1; then
     
     echo -e "  ${GREEN}✅ CloudWatch logs available${NC}"
     echo "  Log group: $LOG_GROUP"
