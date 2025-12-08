@@ -294,8 +294,8 @@ ROUTES=(
 set -x
 for ROUTE in "${ROUTES[@]}"; do
     METHOD=$(echo "$ROUTE" | cut -d' ' -f1)
-    PATH=$(echo "$ROUTE" | cut -d' ' -f2)
-    ROUTE_KEY="$METHOD $PATH"
+    ROUTE_PATH=$(echo "$ROUTE" | cut -d' ' -f2)
+    ROUTE_KEY="$METHOD $ROUTE_PATH"
     
     # Debug: Check if aws exists and PATH is correct
     echo "Checking route: $ROUTE_KEY"
