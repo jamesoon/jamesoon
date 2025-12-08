@@ -297,7 +297,11 @@ for ROUTE in "${ROUTES[@]}"; do
     PATH=$(echo "$ROUTE" | cut -d' ' -f2)
     ROUTE_KEY="$METHOD $PATH"
     
-    ROUTE_ID=$(aws apigatewayv2 get-routes --api-id "$API_ID" --region "$REGION" --query "Items[?RouteKey=='$ROUTE_KEY'].RouteId" --output text 2>/dev/null)
+    # Debug: Check if aws exists and PATH is correct
+    echo "Checking route: $ROUTE_KEY"
+
+    # Remove 2>/dev/null to see errors
+    ROUTE_ID=$(aws apigatewayv2 get-routes --api-id "$API_ID" --region "$REGION" --query "Items[?RouteKey=='$ROUTE_KEY'].RouteId" --output text)
     
     if [ -z "$ROUTE_ID" ] || [ "$ROUTE_ID" == "None" ]; then
         echo "Creating route: $ROUTE_KEY"
