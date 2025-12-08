@@ -36,7 +36,7 @@ CONFIG = {
     'Frontend': os.getenv('FRONTEND_URL', 'https://prml.mdaie-sutd.fit'),
     'Market Data API': os.getenv('MARKET_DATA_API_URL', 'https://0qoytg0cfg.execute-api.ap-southeast-1.amazonaws.com/prod/api/market-indices'),
     'Trading API': os.getenv('TRADING_API_URL', 'https://m6dc44h91f.execute-api.ap-southeast-1.amazonaws.com/health'),
-    'Prediction API': os.getenv('PREDICTION_API_URL', 'https://0qoytg0cfg.execute-api.ap-southeast-1.amazonaws.com/prod/predict'),
+    'Prediction API': os.getenv('PREDICTION_API_URL', 'https://0qoytg0cfg.execute-api.ap-southeast-1.amazonaws.com/prod/healthcheck'),
 }
 
 def check_endpoint(component, url, method='GET', payload=None):
@@ -93,9 +93,7 @@ def run_monitoring_loop(interval=60):
         # Note: If /health doesn't exist, we might get 403/404, but we check reachability
         check_endpoint('Trading API', CONFIG['Trading API'])
         
-        # 4. Check Prediction API
-        # We assume a GET request might return 405 or 400 if payload missing, but proves connectivity
-        # Or we can try a dummy POST if we know the schema
+        # 4. Check Prediction API (using healthcheck endpoint)
         check_endpoint('Prediction API', CONFIG['Prediction API'], method='GET')
         
         time.sleep(interval)

@@ -2,18 +2,22 @@
 
 # Configuration
 REGION="ap-southeast-1"
-API_NAME="MarketDataAPI" # Assuming the prediction API is part of MarketDataAPI
+API_NAME="MarketDataAPI" 
+REV=`tput rev`
+NRM=`tput sgr0`
+BLD=`tput bold`
+UNL=`tput underline`
 
 echo "=================================================="
 echo "Testing Prediction API for SPY by Date"
 echo "=================================================="
 
 # Get API ID dynamically
-echo "Fetching API ID for '$API_NAME'வுகளை..."
+echo "Fetching API ID for '$API_NAME' ..."
 API_ID=$(aws apigateway get-rest-apis --query "items[?name=='$API_NAME'].id" --output text --region $REGION)
 
 if [ -z "$API_ID" ] || [ "$API_ID" == "None" ]; then
-    echo "❌ Error: Could not find API Gateway with name '$API_NAME'"
+    echo "ERROR: Could not find API Gateway with name '$API_NAME'"
     exit 1
 fi
 
@@ -26,7 +30,7 @@ read -p "Enter date for SPY prediction (YYYY-MM-DD): " PREDICTION_DATE
 
 # Validate date format (basic check)
 if ! [[ "$PREDICTION_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-    echo "❌ Error: Invalid date format. Please use YYYY-MM-DD."
+    echo "ERROR: Invalid date format. Please use YYYY-MM-DD."
     exit 1
 fi
 
@@ -40,10 +44,10 @@ HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS" | cut -d: -f2)
 BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS")
 
 if [ "$HTTP_STATUS" -eq 200 ]; then
-    echo "✅ Success (HTTP 200)"
+    echo "${REV}SUCCESS${NRM} (HTTP 200)"
     echo "Response: $BODY"
 else
-    echo "❌ Failed (HTTP $HTTP_STATUS)"
+    echo "FAILED (HTTP $HTTP_STATUS)"
     echo "Response: $BODY"
 fi
 

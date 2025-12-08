@@ -78,3 +78,13 @@ backend/lambda_function.zip
 lambda_market_data_package/
 lambda_spy_data/package/
 lambda_spy_data/lambda_spy_data/
+
+# Frontend Artifacts
+frontend/build
+
+# Prompts
+prompts/
+
+# Config
+config/market_data_api.txt
+config/trading_api.txt

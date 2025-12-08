@@ -1,0 +1,11 @@
+# Trading Backend API Configuration sample
+# Replace your-own with your own 
+
+TRADING_API_URL=https://your-own.execute-api.ap-southeast-1.amazonaws.com
+API_ID=your-own
+FUNCTION_NAME=trading-backend
+FUNCTION_ARN=your-own
+TABLE_NAME=TradingApp
+TABLE_ARN=your-own
+REGION=ap-southeast-1
+DEPLOYED_AT=2025-11-30T17:26:50+08:00

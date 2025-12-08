@@ -45,7 +45,7 @@ const Footer: React.FC = () => {
           align="center"
           sx={{ display: 'block', mt: 0.5, fontSize: '0.65rem', opacity: 0.7 }}
         >
-          v1.04
+          v1.07
         </Typography>
       </Container>
     </Box>

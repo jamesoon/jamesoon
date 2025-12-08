@@ -1,0 +1,6 @@
+# Replace your-own 
+MARKET_DATA_API_URL=https://your-own.execute-api.ap-southeast-1.amazonaws.com/prod/api/market-indices
+API_GATEWAY_ID=your-own
+LAMBDA_FUNCTION=market-data-fetcher
+REGION=<AWS-REGION>
+DEPLOYED_AT=Wed Dec  3 22:26:42 +08 2025
