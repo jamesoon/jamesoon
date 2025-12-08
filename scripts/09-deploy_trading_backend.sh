@@ -199,8 +199,7 @@ if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$REGION" >
         --function-name "$FUNCTION_NAME" \
         --s3-bucket "$S3_BUCKET" \
         --s3-key "$S3_KEY" \
-        --region "$REGION" \
-        --no-cli-pager
+        --region "$REGION"
     
     echo "Waiting for update to complete..."
     aws lambda wait function-updated --function-name "$FUNCTION_NAME" --region "$REGION"
@@ -213,8 +212,7 @@ if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$REGION" >
         --environment "Variables={DYNAMODB_TABLE=$TABLE_NAME}" \
         --timeout 60 \
         --memory-size 512 \
-        --region "$REGION" \
-        --no-cli-pager
+        --region "$REGION"
 else
     echo "Creating new Lambda function..."
     aws lambda create-function \
@@ -226,8 +224,7 @@ else
         --environment "Variables={DYNAMODB_TABLE=$TABLE_NAME}" \
         --timeout 60 \
         --memory-size 512 \
-        --region "$REGION" \
-        --no-cli-pager
+        --region "$REGION"
 fi
 
 echo "Waiting for Lambda function to be ready..."
@@ -308,7 +305,6 @@ for ROUTE in "${ROUTES[@]}"; do
             --route-key "$ROUTE_KEY" \
             --target "integrations/$INTEGRATION_ID" \
             --region "$REGION" \
-            --no-cli-pager >/dev/null
     else
         echo "✓ Route exists: $ROUTE_KEY"
     fi
@@ -322,8 +318,7 @@ if ! aws apigatewayv2 get-stage --api-id "$API_ID" --stage-name "$STAGE_NAME" --
         --api-id "$API_ID" \
         --stage-name "$STAGE_NAME" \
         --auto-deploy \
-        --region "$REGION" \
-        --no-cli-pager
+        --region "$REGION"
 fi
 
 # Grant API Gateway permission to invoke Lambda
